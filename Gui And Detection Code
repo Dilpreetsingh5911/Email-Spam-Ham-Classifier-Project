@@ -1,0 +1,68 @@
+from tkinter import *
+from tkinter import messagebox
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+import joblib
+
+# Load the trained model
+model = joblib.load('spam_or_ham_model.pkl')
+cv = joblib.load('count_vectorizer.pkl')  # Assuming you saved CountVectorizer too
+
+# Define prediction function
+def predict_spam_ham():
+    input_text = entry.get()
+    if input_text.strip() == "":
+        messagebox.showerror("Error", "Please enter some text.")
+    else:
+        ps = PorterStemmer()
+        input_text_lower = input_text.lower()
+        input_text_tokens = nltk.word_tokenize(input_text_lower)
+        filtered_tokens = []
+        for word in input_text_tokens:
+            # Check if the word is alphanumeric and not in stopwords
+            if word.isalnum() and word not in stopwords.words('english'):
+                # Stem the word
+                stemmed_word = ps.stem(word)
+                # Add the stemmed word to the filtered tokens list
+                filtered_tokens.append(stemmed_word)
+        # Join the filtered tokens into a single string
+        preprocessed_text = " ".join(filtered_tokens)
+        # Transform the preprocessed text into a vector
+        input_vector = cv.transform([preprocessed_text])
+        # Make prediction
+        prediction = model.predict(input_vector)
+        print(prediction)
+        # Update result label based on prediction
+        if prediction[0] == 0:
+            result_label.config(text="Ham Email",font="arial 30")
+        else:
+            result_label.config(text="Spam Email",font="arial 30")
+
+# Create Tkinter GUI
+root = Tk()
+root.geometry('600x600')
+root.configure(background='sky blue')
+root.title("Spam or Ham Classifier")
+
+
+label = Label(root, text="Email Spam Or Ham Classifier",font='bold 30',bg='skyblue')
+label.pack()
+
+label = Label(root, text="Enter Text:",font='bold 25',bg='skyblue')
+label.pack()
+
+entry = Entry(root, width=50,font='italic 25')
+entry.pack()
+
+# login_user_id_frame=LabelFrame(root,text='Enter Details',font='arial 20 italic',bd=20,relief=GROOVE,bg='lightsteelblue3')
+# login_user_id_frame.pack()
+
+predict_button = Button(root, text="Check", command=predict_spam_ham,font='bold 30',bg='black',fg='white')
+predict_button.pack()
+
+result_label = Label(root,bg='skyblue')
+result_label.pack()
+
+root.mainloop()
+
