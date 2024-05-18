@@ -1,0 +1,117 @@
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pylab as plt
+import seaborn as sns
+import nltk
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, log_loss
+from nltk.corpus import stopwords
+import string
+from nltk.stem.porter import PorterStemmer
+import joblib
+from tkinter import *
+from tkinter import messagebox
+
+# Load dataset
+df = pd.read_csv('spam or ham data/spamhamdata.csv', sep='\t', names=['target', 'text'])
+print(df)
+
+# Encode labels
+label_encode = LabelEncoder()
+df['target'] = label_encode.fit_transform(df['target'])
+
+# Check and remove duplicates
+df.isnull().sum()
+df.duplicated().sum()
+df = df.drop_duplicates(keep='first')
+df.duplicated().sum()
+df.shape
+df['target'].value_counts()
+
+# Feature engineering
+df['num_character'] = df['text'].apply(len)
+print(df)
+
+nltk.download('punkt')
+nltk.download('stopwords')
+
+df['num_words'] = df['text'].apply(lambda x: len(nltk.word_tokenize(x)))
+print(df)
+
+df['num_sentence'] = df['text'].apply(lambda x: len(nltk.sent_tokenize(x)))
+print(df.head())
+
+df[['num_character', 'num_words', 'num_sentence']].describe()
+df[df['target'] == 0][['num_character', 'num_words', 'num_sentence']].describe()
+df[df['target'] == 1][['num_character', 'num_words', 'num_sentence']].describe()
+
+# Visualization
+plt.figure(figsize=(12, 6))
+sns.histplot(df[df['target'] == 0]['num_character'])
+sns.histplot(df[df['target'] == 1]['num_character'], color='yellow')
+sns.pairplot(df, hue='target')
+
+# Text preprocessing function
+ps = PorterStemmer()
+
+def transform_text(text):
+    text = text.lower()
+    text = nltk.word_tokenize(text)
+
+    y = [i for i in text if i.isalnum()]
+
+    text = [i for i in y if i not in stopwords.words('english') and i not in string.punctuation]
+
+    text = [ps.stem(i) for i in text]
+
+    return " ".join(text)
+
+transform_text("FreeMsg Hey there darling it's been 3 week's now and no word back! I'd like some fun you up for it still? Tb ok! XxX std chgs to send, £1.50 to rcv")
+
+df['transform_text'] = df['text'].apply(transform_text)
+print(df.head())
+
+# Create word corpus for spam
+spam_corpus = []
+for mes in df[df['target'] == 1]["transform_text"].tolist():
+    for word in mes.split():
+        spam_corpus.append(word)
+
+print(len(spam_corpus))
+
+from collections import Counter
+word_counts = pd.DataFrame(Counter(spam_corpus).most_common(30), columns=['Word', 'Count'])
+
+# Plot word frequencies
+sns.barplot(data=word_counts, x='Word', y='Count')
+plt.xticks(rotation='vertical')
+plt.show()
+
+# Vectorization and model training
+cv = CountVectorizer()
+x = cv.fit_transform(df['transform_text']).toarray()
+y = df['target']
+xtrain, xtest, ytrain, ytest = train_test_split(x, y, test_size=0.2, random_state=1)
+
+model = RandomForestClassifier()
+model.fit(xtrain, ytrain)
+
+# Model evaluation
+y_pred_proba = model.predict_proba(xtest)
+ypred = model.predict(xtest)
+print('accuracy_score:', accuracy_score(ytest, ypred))
+print('confusion_matrix:')
+print(confusion_matrix(ytest, ypred))
+print('precision_score:', precision_score(ytest, ypred))
+print('log_loss:', log_loss(ytest, y_pred_proba))
+
+# Save the model and vectorizer
+joblib.dump(model, 'spam_or_ham_model.pkl')
+joblib.dump(cv, 'count_vectorizer.pkl')
+
+
