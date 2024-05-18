@@ -1,5 +1,3 @@
-
-
 import numpy as np
 import pandas as pd
 import matplotlib.pylab as plt
@@ -113,5 +111,4 @@ print('log_loss:', log_loss(ytest, y_pred_proba))
 # Save the model and vectorizer
 joblib.dump(model, 'spam_or_ham_model.pkl')
 joblib.dump(cv, 'count_vectorizer.pkl')
-
 
